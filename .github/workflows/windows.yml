@@ -1,0 +1,36 @@
+name: Compilar para Windows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Preparar Electron
+        run: node node_modules/electron/install.js
+      - name: Ejecutar pruebas
+        run: npm test
+      - name: Generar instalador y portable
+        run: npm run dist
+      - name: Guardar los ejecutables
+        uses: actions/upload-artifact@v4
+        with:
+          name: Trazo3D-Windows-x64
+          path: dist/*.exe
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+work/
+src/app.bundle.js
+package-lock.json
+*.exe
+VALIDACION*.json
+THIRD-PARTY-NOTICES.txt
+LICENSE

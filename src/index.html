@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'"
+    />
+    <title>Trazo 3D</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="app.bundle.js"></script>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <span class="brand-icon">◈</span><span>trazo<span class="brand-3d">3D</span></span
+        ><span class="local-badge">LOCAL</span>
+      </div>
+      <div class="document">
+        <span class="doc-icon" data-icon="file"></span
+        ><input
+          id="project-name"
+          aria-label="Nombre del proyecto"
+          value="Casa patio"
+          maxlength="100"
+        /><span id="saved-status">Sin guardar</span>
+      </div>
+      <button
+        id="help-button"
+        class="icon-button"
+        title="Guía y atajos (F1)"
+        data-icon="help"
+      ></button>
+    </header>
+    <nav class="menubar" aria-label="Archivo y edición">
+      <div class="menu-group">
+        <button id="new-button" data-icon="plus">Nuevo</button
+        ><button id="open-button" data-icon="folder">Abrir</button
+        ><button id="save-button" class="save" data-icon="save">Guardar</button>
+        <div class="dropdown">
+          <button id="export-button" data-icon="export">
+            Exportar <span class="chevron">⌄</span>
+          </button>
+          <div id="export-menu" class="dropdown-menu" hidden>
+            <button data-export="obj">Modelo Wavefront · OBJ</button
+            ><button data-export="stl">Modelo para impresión · STL</button
+            ><button data-export="png">Imagen del visor · PNG</button
+            ><button id="import-button">Importar OBJ / STL / DXF…</button
+            ><button id="save-as-button">Guardar como…</button>
+          </div>
+        </div>
+      </div>
+      <div class="menu-group edit-group">
+        <button id="undo-button" title="Deshacer (Ctrl+Z)" data-icon="undo"></button
+        ><button id="redo-button" title="Rehacer (Ctrl+Y)" data-icon="redo"></button
+        ><span class="divider"></span
+        ><button id="duplicate-button" title="Duplicar (Ctrl+D)" data-icon="copy"></button
+        ><button id="group-button" title="Agrupar (Ctrl+G)" data-icon="group"></button
+        ><button id="delete-button" title="Eliminar (Supr)" data-icon="trash"></button>
+        <div class="dropdown">
+          <button id="solids-button" data-icon="box">Sólidos ⌄</button>
+          <div id="solids-menu" class="dropdown-menu" hidden>
+            <button data-boolean="union">Unir dos sólidos · A ∪ B</button
+            ><button data-boolean="subtract">Restar segundo al primero · A − B</button
+            ><button data-boolean="intersect">Intersección · A ∩ B</button>
+            <p class="small-note" style="padding: 4px 10px">
+              Selecciona A y luego B con Ctrl. El resultado es una malla editable por
+              transformación.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="menu-group view-group">
+        <button id="fit-button" data-icon="fit" title="Encuadrar modelo (Inicio)">Encuadrar</button
+        ><button id="demo-button" title="Abrir modelo de ejemplo">Ejemplo</button>
+      </div>
+    </nav>
+    <main>
+      <aside class="tools" aria-label="Herramientas">
+        <div class="tool-section">
+          <button
+            data-tool="select"
+            data-icon="cursor"
+            class="tool active"
+            title="Seleccionar (Espacio)"
+          >
+            <span class="tool-key">↖</span>
+          </button>
+          <button
+            data-tool="rectangle"
+            data-icon="rectangle"
+            class="tool"
+            title="Rectángulo (R)"
+          ></button>
+          <button
+            data-tool="polygon"
+            data-icon="pen"
+            class="tool"
+            title="Polígono cerrado · Enter termina"
+          ></button>
+          <button data-tool="circle" data-icon="circle" class="tool" title="Círculo (C)"></button>
+          <button data-tool="box" data-icon="box" class="tool" title="Caja 3D (B)"></button>
+        </div>
+        <div class="tool-section">
+          <button
+            data-tool="extrude"
+            data-icon="extrude"
+            class="tool"
+            title="Empujar / tirar una cara (P)"
+          ></button>
+          <button data-tool="move" data-icon="move" class="tool" title="Mover (M)"></button>
+          <button data-tool="rotate" data-icon="rotate" class="tool" title="Rotar (Q)"></button>
+          <button data-tool="scale" data-icon="scale" class="tool" title="Escalar (S)"></button>
+          <button
+            data-tool="paint"
+            data-icon="paint"
+            class="tool"
+            title="Pintar una cara (T); Shift: objeto completo"
+          ></button>
+          <button
+            data-tool="erase"
+            data-icon="eraser"
+            class="tool"
+            title="Borrar objeto (E)"
+          ></button>
+        </div>
+        <div class="tool-section">
+          <button
+            data-tool="measure"
+            data-icon="ruler"
+            class="tool"
+            title="Medir distancia (D)"
+          ></button>
+          <button data-tool="orbit" data-icon="orbit" class="tool" title="Orbitar (O)"></button>
+        </div>
+        <div class="tool-footer">2.0</div>
+      </aside>
+      <section id="viewport" aria-label="Visor 3D">
+        <div class="viewport-top">
+          <div class="view-tabs">
+            <button data-view="iso" class="active">Perspectiva</button
+            ><button data-view="top">Planta</button><button data-view="front">Frente</button
+            ><button data-view="right">Lateral</button>
+          </div>
+          <div class="viewport-toggles">
+            <button
+              id="grid-toggle"
+              class="active"
+              title="Mostrar cuadrícula"
+              data-icon="grid"
+            ></button
+            ><button
+              id="edges-toggle"
+              class="active"
+              title="Mostrar aristas"
+              data-icon="box"
+            ></button
+            ><button id="shadows-toggle" class="active" title="Sombras" data-icon="sun"></button
+            ><button
+              id="projection-toggle"
+              title="Proyección ortográfica"
+              data-icon="camera"
+            ></button>
+          </div>
+        </div>
+        <div class="view-label">
+          <span class="green-dot"></span><span id="view-name">Perspectiva</span
+          ><span class="view-subtitle">Modelo sólido</span>
+        </div>
+        <div id="axis-compass">
+          <span class="axis-y">Y</span><span class="axis-z">Z</span><span class="axis-x">X</span
+          ><svg viewBox="0 0 80 80">
+            <path d="M40 44L40 12" stroke="#648167" />
+            <path d="M40 44L13 59" stroke="#6482a1" />
+            <path d="M40 44L68 59" stroke="#bb6859" />
+          </svg>
+        </div>
+        <div id="start-card">
+          <span class="eyebrow">TU ESPACIO PARA CREAR</span
+          ><strong>Una idea. Tres dimensiones.</strong>
+          <p>Dibuja una cara y dale volumen con Empujar / tirar.</p>
+          <div>
+            <kbd>R</kbd> dibujar <span>→</span> <kbd>P</kbd> extruir <span>→</span>
+            <kbd>M</kbd> mover
+          </div>
+          <button id="dismiss-card" aria-label="Cerrar consejo">×</button>
+        </div>
+        <div id="drawing-hint" hidden></div>
+        <div id="toast" role="status" hidden></div>
+        <div class="viewport-bottom">
+          <span id="object-count">0 objetos</span
+          ><span>Rueda: zoom · botón central: orbitar · derecho: desplazar</span>
+        </div>
+      </section>
+      <aside class="inspector">
+        <div class="inspector-heading">
+          <span>ESPACIO DE TRABAJO</span
+          ><span class="offline-dot" title="Funciona sin conexión"></span>
+        </div>
+        <section class="panel properties-panel">
+          <div class="panel-title">
+            <h2>Propiedades</h2>
+            <span id="selection-badge">Sin selección</span>
+          </div>
+          <div id="empty-selection">
+            <span data-icon="cursor"></span>
+            <p>Selecciona un objeto para<br />editar sus propiedades.</p>
+          </div>
+          <div id="selection-properties" hidden>
+            <label class="field-label"
+              >Nombre<input id="object-name" maxlength="100" aria-label="Nombre del objeto"
+            /></label>
+            <div class="property-row-label">Posición <small id="position-unit">m</small></div>
+            <div class="triple">
+              <label
+                ><span class="x-label">X</span
+                ><input
+                  data-prop="position"
+                  data-axis="0"
+                  type="number"
+                  step="0.1"
+                  aria-label="Posición X" /></label
+              ><label
+                ><span class="y-label">Y</span
+                ><input
+                  data-prop="position"
+                  data-axis="1"
+                  type="number"
+                  step="0.1"
+                  aria-label="Posición Y" /></label
+              ><label
+                ><span class="z-label">Z</span
+                ><input
+                  data-prop="position"
+                  data-axis="2"
+                  type="number"
+                  step="0.1"
+                  aria-label="Posición Z"
+              /></label>
+            </div>
+            <div class="property-row-label">Dimensiones <small id="dimension-unit">m</small></div>
+            <div class="triple">
+              <label
+                ><span class="x-label">X</span
+                ><input
+                  data-prop="dimensions"
+                  data-axis="0"
+                  type="number"
+                  min="0.001"
+                  step="0.1"
+                  aria-label="Ancho" /></label
+              ><label
+                ><span class="y-label">Y</span
+                ><input
+                  data-prop="dimensions"
+                  data-axis="1"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  aria-label="Alto" /></label
+              ><label
+                ><span class="z-label">Z</span
+                ><input
+                  data-prop="dimensions"
+                  data-axis="2"
+                  type="number"
+                  min="0.001"
+                  step="0.1"
+                  aria-label="Fondo"
+              /></label>
+            </div>
+            <div class="property-row-label">Rotación <small>°</small></div>
+            <div class="triple">
+              <label
+                ><span>X</span
+                ><input
+                  data-prop="rotation"
+                  data-axis="0"
+                  type="number"
+                  step="15"
+                  aria-label="Rotación X" /></label
+              ><label
+                ><span>Y</span
+                ><input
+                  data-prop="rotation"
+                  data-axis="1"
+                  type="number"
+                  step="15"
+                  aria-label="Rotación Y" /></label
+              ><label
+                ><span>Z</span
+                ><input
+                  data-prop="rotation"
+                  data-axis="2"
+                  type="number"
+                  step="15"
+                  aria-label="Rotación Z"
+              /></label>
+            </div>
+            <div class="stats-row">
+              <span id="face-count"></span><span id="volume-count"></span>
+            </div>
+            <button id="ungroup-button" class="text-button" hidden>Desagrupar selección</button>
+          </div>
+        </section>
+        <section class="panel materials-panel">
+          <div class="panel-title">
+            <h2>Materiales</h2>
+            <span id="material-name">Arena</span>
+          </div>
+          <div id="material-swatches"></div>
+          <div class="material-custom">
+            <label
+              ><input
+                id="custom-color"
+                type="color"
+                value="#e9dfcb"
+                title="Color personalizado"
+              /><span>Color personalizado</span></label
+            ><button id="apply-color" title="Aplicar color a selección" data-icon="paint"></button>
+          </div>
+          <p class="small-note">T: pintar cara · Shift: todo el objeto</p>
+        </section>
+        <section class="panel objects-panel">
+          <div class="panel-title">
+            <h2>Objetos</h2>
+            <span id="tree-count">0</span>
+          </div>
+          <div id="object-tree"></div>
+        </section>
+        <section class="panel scenes-panel">
+          <div class="panel-title">
+            <h2>Escenas</h2>
+            <button
+              id="add-scene"
+              class="icon-button"
+              data-icon="plus"
+              title="Guardar vista actual"
+            ></button>
+          </div>
+          <div id="scene-list">
+            <span class="small-note">Guarda tus puntos de vista favoritos.</span>
+          </div>
+        </section>
+        <section class="settings-panel">
+          <label
+            >Unidades<select id="units">
+              <option value="m">Metros</option>
+              <option value="cm">Centímetros</option>
+              <option value="mm">Milímetros</option>
+            </select></label
+          ><label
+            ><input id="snap-toggle" type="checkbox" checked /> Ajuste a rejilla
+            <input
+              id="snap-size"
+              type="number"
+              value="0.1"
+              min="0.001"
+              max="100"
+              step="0.1"
+              aria-label="Tamaño de rejilla" /></label
+          ><label><input id="surface-toggle" type="checkbox" checked /> Dibujar sobre caras</label>
+        </section>
+      </aside>
+    </main>
+    <footer>
+      <span class="tool-indicator" id="active-tool-icon" data-icon="cursor"></span>
+      <div class="status">
+        <strong id="tool-name">Seleccionar</strong
+        ><span id="status-hint">Haz clic en un objeto · Ctrl: selección múltiple</span>
+      </div>
+      <div id="inference-label"></div>
+      <label class="measurement"
+        ><span id="measurement-label">Medidas</span
+        ><input
+          id="measurement-input"
+          placeholder="Introduce una medida…"
+          aria-label="Medidas precisas"
+        /><span id="measurement-unit">m</span></label
+      >
+    </footer>
+    <dialog id="help-dialog">
+      <div class="dialog-heading">
+        <span class="brand-icon">◈</span>
+        <h2>Trazo 3D · Tu taller local.</h2>
+        <button class="dialog-close" aria-label="Cerrar">×</button>
+      </div>
+      <p>
+        Modela y documenta en tu computador. El panel derecho tiene pestañas Objeto y materiales y
+        Proyecto.
+      </p>
+      <div class="help-grid">
+        <div>
+          <h3>Dibujar y dar volumen</h3>
+          <p>
+            <kbd>R</kbd> rectángulo, <kbd>C</kbd> círculo, <kbd>L</kbd> línea abierta y
+            <kbd>A</kbd> arco. Enter termina la línea; volver al primer punto crea una cara.
+            <kbd>P</kbd> extruye una cara. Dibujar sobre un sólido y extruir con distancia negativa
+            puede recortarlo.
+          </p>
+          <h3>Editar geometría</h3>
+          <p>
+            Desde Seleccionar: <kbd>1</kbd> objeto, <kbd>2</kbd> vértice, <kbd>3</kbd> arista y
+            <kbd>4</kbd> cara. Marca el elemento y utiliza <kbd>M</kbd>, <kbd>Q</kbd> o
+            <kbd>S</kbd>. Las caras torcidas se pliegan en triángulos. Supr elimina geometría; en
+            aristas coplanares disuelve la separación.
+          </p>
+          <h3>Offset y recorridos</h3>
+          <p>
+            <kbd>F</kbd> selecciona una cara y escribe distancia + Enter. Para Seguir recorrido,
+            selecciona un perfil y una línea con Ctrl y usa el menú Modelar.
+          </p>
+        </div>
+        <div>
+          <h3>Medidas e inferencias</h3>
+          <p>
+            Rectángulo: <code>4;3</code> · caja: <code>4;3;2,8</code> · círculo: radio. Se admiten
+            mm, cm y m. Marca primero el inicio. Las flechas bloquean ejes; Shift fuerza una
+            dirección y Alt ignora el ajuste.
+          </p>
+          <h3>Componentes y materiales</h3>
+          <p>
+            Modelar → Crear componente vinculado. Ctrl+D duplica conservando el vínculo; editar la
+            geometría actualiza sus instancias. Hacer único las separa. En materiales puedes elegir
+            texturas e importar imágenes locales.
+          </p>
+          <h3>Cotas, planos y archivos</h3>
+          <p>
+            <kbd>K</kbd> crea una cota con tres clics. En Proyecto encontrarás biblioteca,
+            etiquetas, secciones y láminas PDF/SVG a escala. Guarda en .trazo e intercambia
+            OBJ/STL/DXF. SKP no es compatible. Inicio encuadra; rueda acerca; central orbita;
+            derecho desplaza.
+          </p>
+        </div>
+      </div>
+      <div class="dialog-footer">
+        <span>Ctrl+S guardar · Ctrl+Z deshacer · Esc cancelar</span
+        ><button class="primary dialog-close">A modelar</button>
+      </div>
+    </dialog>
+    <dialog id="confirm-dialog">
+      <h2 id="confirm-title">Cambios sin guardar</h2>
+      <p id="confirm-message">¿Quieres guardar tu proyecto antes de continuar?</p>
+      <div class="dialog-actions">
+        <button data-answer="cancel">Cancelar</button
+        ><button data-answer="discard">Continuar sin guardar</button
+        ><button class="primary" data-answer="save">Guardar</button>
+      </div>
+    </dialog>
+    <dialog id="recovery-dialog">
+      <h2>Hay un proyecto recuperable</h2>
+      <p>Se encontró una copia local de tu última sesión. ¿Quieres recuperarla?</p>
+      <div class="dialog-actions">
+        <button id="discard-recovery">Descartar copia</button
+        ><button id="restore-recovery" class="primary">Recuperar proyecto</button>
+      </div>
+    </dialog>
+  </body>
+</html>
